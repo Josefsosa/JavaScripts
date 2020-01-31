@@ -1,0 +1,56 @@
+# Steps to Install Kubernetes on CentOS7 with Kubeadm and vSphere
+
+1.  On the master node:
+Edit the vsphere.conf file within the `kubeadm-master.sh` to match your environment. Copy `kubeadm-master.sh` to the master node:
+```
+sudo chmod u+x kubeadm-master.sh
+sudo ./kubeadm-master.sh
+```
+
+2. On each worker node copy `kubeadm-worker.sh`:
+```
+sudo chmod u+x kubeadm-worker.sh
+sudo ./kubeadm-worker.sh
+```
+
+3. On the master node, install flannel:
+ ```
+ kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/bc79dd1505b0c8681ece4de4c0d86c5cd2643275/Documentation/kube-flannel.yml
+ ```
+
+4. On the master node, check to make sure the pods are all in the status Running:
+```
+$ kubectl get pods --all-namespaces
+```
+
+5. On the master node, export the master node config used to point the workers being joined to the master:
+```
+kubectl -n kube-public get configmap cluster-info -o jsonpath='{.data.kubeconfig}' > discovery.yaml
+```
+
+6. On the master node, transfer the `discovery.yaml` to every worker that will need it
+```
+scp discovery.yaml kcoleman@10.IP.ADD.RESS:~/discovery.yaml
+```
+
+7. On the worker node, make sure yaml was successfully transferred:
+```
+cat discovery.yaml
+```
+
+8. On the worker node, join it to the cluster with `kubeadm`:
+```
+sudo kubeadm join --config /etc/kubernetes/kubeadminitworker.yaml
+```
+
+9. On the master node, verify the nodes were added to the cluster and the Provider for vSphere is correct:
+```
+$ kubectl get nodes -o wide
+$ kubectl describe nodes | grep "ProviderID"
+```
+
+10. On the master node, create the StorageClass and a PersistentVolumeClaim to verify storage connectivity:
+```
+kubectl apply -f sc.yaml
+kubectl apply -f pvc.yaml
+```
